@@ -11,8 +11,8 @@ MARGIN = 100
 table_width = WINDOW_WIDTH - 2 * MARGIN
 table_height = WINDOW_HEIGHT - 2 * MARGIN
 
-FPS_SOLUTION = 2920
-FPS = 720
+FPS_SOLUTION = 590
+FPS = 590
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 LIGHT_BLUE = (173, 216, 230)
@@ -31,7 +31,7 @@ pygame.display.set_caption("Sudoku")
 clock = pygame.time.Clock()
 
 
-# Algorithm############################################################################################################
+# Algorithm ############################################################################################################
 
 # Function to find an empty location in the grid
 def find_empty_location(arr, l):
@@ -356,15 +356,15 @@ def main():
 
                 # if the user wants to change the speed
                 elif 20 <= x <= 70 and 40 <= y <= 60:
-                    FPS_SOLUTION = 90
+                    FPS_SOLUTION = 30
                     SPEED = 1
                     display_speed_options()
                 elif 45 <= x <= 95 and 40 <= y <= 60:
-                    FPS_SOLUTION = 720
+                    FPS_SOLUTION = 60
                     SPEED = 2
                     display_speed_options()
                 elif 70 <= x <= 120 and 40 <= y <= 60:
-                    FPS_SOLUTION = 2920
+                    FPS_SOLUTION = 280
                     SPEED = 3
                     display_speed_options()
 
@@ -431,7 +431,6 @@ def main():
                 elif event.key == pygame.K_9 or event.key == pygame.K_KP9:
                     grid[row][col] = 9
                 elif event.key == pygame.K_DELETE or event.key == pygame.K_BACKSPACE:
-                    to_print = True
                     grid[row][col] = 0
 
                 display_number(grid, row, col, num)
