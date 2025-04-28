@@ -1,5 +1,6 @@
-import pygame
 import random
+
+import pygame
 from arcade import sound as arcade
 
 pygame.init()
@@ -11,18 +12,27 @@ MARGIN = 100
 table_width = WINDOW_WIDTH - 2 * MARGIN
 table_height = WINDOW_HEIGHT - 2 * MARGIN
 
-FPS_SOLUTION = 5
-FPS = 590
+SPEED_FPS1 = 5
+SPEED_FPS2 = 30
+SPEED_FPS3 = 280
+
+SPEED = 1
+FPS_SOLUTION = SPEED_FPS1
+
+FPS = 590  # Before the solution
+
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 LIGHT_BLUE = (173, 216, 230)
 BLUE = (104, 185, 222)
 LIGHT_RED = (179, 64, 76)
 COLOR = LIGHT_RED
+
 FONT = pygame.font.Font(None, 40)
+
 IS_FINISH = False
 IS_START = False
-SPEED = 1
+
 
 # Initialize the pygame
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -502,7 +512,7 @@ def mark_box(row, col, last_row=-1, last_col=-1):
 
 
 # main func
-def main():
+def sudoko_solver(arr=None):
     global IS_START
     global FPS_SOLUTION
     global SPEED
@@ -514,18 +524,22 @@ def main():
     # The sudoku grid
     grid = [[[0, []] for _ in range(9)] for _ in range(9)]
 
-    IS_START, grid = generate_sudoku(grid)
-    if not IS_START:
-        arr = [[5, 3, 0, 0, 7, 0, 0, 0, 0],
-               [6, 0, 0, 1, 9, 5, 0, 0, 0],
-               [0, 9, 8, 0, 0, 0, 0, 6, 0],
-               [8, 0, 0, 0, 6, 0, 0, 0, 3],
-               [4, 0, 0, 8, 0, 3, 0, 0, 1],
-               [7, 0, 0, 0, 2, 0, 0, 0, 6],
-               [0, 6, 0, 0, 0, 0, 2, 8, 0],
-               [0, 0, 0, 4, 1, 9, 0, 0, 5],
-               [0, 0, 0, 0, 8, 0, 0, 7, 9]]
+    if arr is None:
+        IS_START, grid = generate_sudoku(grid)
+        if not IS_START:
+            arr = [[5, 3, 0, 0, 7, 0, 0, 0, 0],
+                   [6, 0, 0, 1, 9, 5, 0, 0, 0],
+                   [0, 9, 8, 0, 0, 0, 0, 6, 0],
+                   [8, 0, 0, 0, 6, 0, 0, 0, 3],
+                   [4, 0, 0, 8, 0, 3, 0, 0, 1],
+                   [7, 0, 0, 0, 2, 0, 0, 0, 6],
+                   [0, 6, 0, 0, 0, 0, 2, 8, 0],
+                   [0, 0, 0, 4, 1, 9, 0, 0, 5],
+                   [0, 0, 0, 0, 8, 0, 0, 7, 9]]
 
+            grid = generate_sudoku_csp(arr)
+    else:  # if the user wants to solve a specific sudoku
+        IS_START = True
         grid = generate_sudoku_csp(arr)
 
     display_screen(grid)
@@ -629,6 +643,10 @@ def main():
                     grid[row][col][0] = 0
 
                 display_number(grid, row, col, num)
+
+
+def main():
+    sudoko_solver()
 
 
 if __name__ == '__main__':
