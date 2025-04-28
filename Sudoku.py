@@ -1,6 +1,6 @@
-from arcade import sound as arcade
 import pygame
 import random
+from arcade import sound as arcade
 
 pygame.init()
 
@@ -11,7 +11,7 @@ MARGIN = 100
 table_width = WINDOW_WIDTH - 2 * MARGIN
 table_height = WINDOW_HEIGHT - 2 * MARGIN
 
-FPS_SOLUTION = 590
+FPS_SOLUTION = 5
 FPS = 590
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -22,7 +22,7 @@ COLOR = LIGHT_RED
 FONT = pygame.font.Font(None, 40)
 IS_FINISH = False
 IS_START = False
-SPEED = 3
+SPEED = 1
 
 # Initialize the pygame
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -33,110 +33,303 @@ clock = pygame.time.Clock()
 
 # Algorithm ############################################################################################################
 
-# Function to find an empty location in the grid
-def find_empty_location(arr, l):
-    for row in range(9):
-        for col in range(9):
-            if arr[row][col] == 0:
-                l[0] = row
-                l[1] = col
-                return True
-    return False
 
+# Function to calculate the possible values for a cell
+def calculate_possible_values(grid, cell):
+    row, col = cell
+    used_values = set()
 
-# Function to check if the number is in the row
-def is_used_in_row(arr, row, num):
+    # Check the row
     for i in range(9):
-        if arr[row][i] == num:
-            return True
-    return False
+        if grid[row][i] != 0:
+            used_values.add(grid[row][i])
 
-
-# Function to check if the number is in the column
-def is_used_in_col(arr, col, num):
+    # Check the column
     for i in range(9):
-        if arr[i][col] == num:
-            return True
-    return False
+        if grid[i][col] != 0:
+            used_values.add(grid[i][col])
 
-
-# Function to check if the number is used in the box (3x3 grid)
-def is_used_in_box(arr, box_col, box_row, num):
+    # Check the box
+    box_row = row // 3
+    box_col = col // 3
     for i in range(3):
         for j in range(3):
-            if arr[box_row * 3 + i][box_col * 3 + j] == num:
-                return True
-    return False
+            if grid[box_row * 3 + i][box_col * 3 + j] != 0:
+                used_values.add(grid[box_row * 3 + i][box_col * 3 + j])
+
+    # Calculate the possible values for the cell
+    possible_values = [i for i in range(1, 10) if i not in used_values]
+    return possible_values
 
 
-# Function that check if the place is safe
-def is_safe(arr, col, row, num):
-    return (not is_used_in_row(arr, row, num) and
-            not is_used_in_col(arr, col, num) and
-            not is_used_in_box(arr, col // 3, row // 3, num))
+# Generate the sudoku CSP solver
+def generate_sudoku_csp(arr):
+    # Initialize the grid with zeros
+    grid = [[[0, []] for _ in range(9)] for _ in range(9)]
+
+    for i in range(9):
+        for j in range(9):
+            grid[i][j] = [arr[i][j], calculate_possible_values(arr, (i, j))]
+
+    return grid
 
 
-# Function that solve the sudoku
-def solution(arr):
-    # l is for the location that we in the middle of solving
-    l = [0, 0]
+# Function to update the grid with the possible values after each step (only for who that effected from the last step)
+def update_grid(grid, cell):
+    row, col = cell
 
-    # if there is no empty locations at the sudoku
-    if not find_empty_location(arr, l):
+    num = grid[row][col][0]
+
+    # Update the row
+    for i in range(9):
+        if grid[row][i][0] == 0 and num in grid[row][i][1]:
+            grid[row][i][1].remove(num)
+
+    # Update the column
+    for i in range(9):
+        if grid[i][col][0] == 0 and num in grid[i][col][1]:
+            grid[i][col][1].remove(num)
+
+    # Update the box
+    box_row = row // 3
+    box_col = col // 3
+    for i in range(3):
+        for j in range(3):
+            if grid[box_row * 3 + i][box_col * 3 + j][0] == 0 and num in grid[box_row * 3 + i][box_col * 3 + j][1]:
+                grid[box_row * 3 + i][box_col * 3 + j][1].remove(num)
+
+
+# Function to find the cell with the minimum number of possible values
+def find_min_possible_values_cell(grid):
+    min_cells = []
+    min_values = 10  # Initialize with a value greater than the maximum possible values (9)
+
+    for i in range(9):
+        for j in range(9):
+            # Find all the empty cells with the minimum number of possible values
+            if grid[i][j][0] == 0 and len(grid[i][j][1]) == min_values:
+                min_cells.append((i, j))
+
+            # if the cell is empty and has less possible values than the current minimum
+            # then update the minimum and the cells
+            elif grid[i][j][0] == 0 and len(grid[i][j][1]) < min_values:
+                min_values = len(grid[i][j][1])
+                min_cells = [(i, j)]
+
+    return min_cells
+
+
+# Function to find the cell that effecting the most cells
+def find_most_effecting_cell(grid, min_cells):
+    # If their only one cell with the minimum number of possible values
+    if len(min_cells) == 1:
+        return min_cells[0]
+
+    # Find the cell that effecting the most cells
+    max_effected_cells = 0
+    most_effecting_cell = min_cells[0]
+    for cell in min_cells:
+        row, col = cell
+        effected_cells = 0
+
+        # Check the row
+        for i in range(9):
+            if grid[row][i][0] == 0:
+                effected_cells += 1
+
+        # Check the column
+        for i in range(9):
+            if grid[i][col][0] == 0:
+                effected_cells += 1
+
+        # Check the box
+        box_row = row // 3
+        box_col = col // 3
+        for i in range(3):
+            for j in range(3):
+                if grid[box_row * 3 + i][box_col * 3 + j][0] == 0:
+                    effected_cells += 1
+
+        # Update the most effecting cell
+        if effected_cells > max_effected_cells:
+            max_effected_cells = effected_cells
+            most_effecting_cell = cell
+
+    return most_effecting_cell
+
+
+# Function to find the val that least effecting on the other cells
+def find_least_effecting_value(grid, cell):
+    row, col = cell
+
+    if len(grid[row][col][1]) == 0:
+        return 0
+
+    min_effected_cells = 10  # Initialize with a value greater than the maximum possible values (9)
+    least_effecting_value = grid[row][col][1][0]  # Initialize with the first possible value
+
+    for val in grid[row][col][1]:
+        effected_cells = 0
+
+        # Check the row
+        for i in range(9):
+            if grid[row][i][0] == 0 and val in grid[row][i][1]:
+                effected_cells += 1
+
+        # Check the column
+        for i in range(9):
+            if grid[i][col][0] == 0 and val in grid[i][col][1]:
+                effected_cells += 1
+
+        # Check the box
+        box_row = row // 3
+        box_col = col // 3
+        for i in range(3):
+            for j in range(3):
+                if grid[box_row * 3 + i][box_col * 3 + j][0] == 0 and val in grid[box_row * 3 + i][box_col * 3 + j][1]:
+                    effected_cells += 1
+
+        # Update the least effecting value
+        if effected_cells < min_effected_cells:
+            min_effected_cells = effected_cells
+            least_effecting_value = val
+
+    return least_effecting_value
+
+
+# Function to check if the sudoku is solved
+def is_solved(grid):
+    for i in range(9):
+        for j in range(9):
+            if grid[i][j][0] == 0:
+                return False
+    return True
+
+
+# Function to solve the sudoku using backtracking
+def solution(grid):
+    # Find the cell with the minimum number of possible values
+    min_cells = find_min_possible_values_cell(grid)
+
+    # If there are no empty cells, the Sudoku is solved
+    if len(min_cells) == 0:
         return True
 
-    # the next empty location
-    row = l[0]
-    col = l[1]
+    # Find the cell that affects the most cells
+    cell = find_most_effecting_cell(grid, min_cells)
 
-    # go through all the numbers between 1 and 9 and try to insert them into [row, col]
-    for num in range(1, 10):
+    # Find the value that least affects other cells
+    val = find_least_effecting_value(grid, cell)
 
-        # if the location is safe -> insert the number
-        if is_safe(arr, col, row, num):
-            arr[row][col] = num
-            if IS_START:
-                display_number(arr, row, col, fps=FPS_SOLUTION)
+    # If no valid value is found, return False (no solution)
+    if val == 0:
+        return False
 
-            # the recursion part, go to try the next location
-            if solution(arr):
-                return True
+    # Assign the value to the cell
+    grid[cell[0]][cell[1]][0] = val
 
-            # if the recursion return back without solution -> we need to
-            # try again that place
-            arr[row][col] = 0
-            if IS_START:
-                display_number(arr, row, col, fps=FPS_SOLUTION)
+    # Update the grid with the possible values
+    update_grid(grid, cell)
 
-    # if we go through the numbers and there is no solution
+    if IS_START:
+        display_number(grid, cell[0], cell[1], fps=FPS_SOLUTION)
+
+    # Recursively solve the grid
+    if solution(grid):
+        return True
+
+    # Backtrack: Reset the cell and restore the possible values
+    grid[cell[0]][cell[1]][0] = 0
+    grid[cell[0]][cell[1]][1].append(val)
+
+    if IS_START:
+        display_number(grid, cell[0], cell[1], fps=FPS_SOLUTION)
+
+    # Recalculate the possible values for the affected cells
+    update_grid(grid, cell)
+
+    # If no solution is found, return False
     return False
 
 
-# Generate the sudoku #############################################################################################
+# Function to find if some move is possible
+def is_safe(arr, col, row, num):
+    # Check if the number is already in the row
+    for x in range(9):
+        if arr[row][x] == num:
+            return False
+
+    # Check if the number is already in the column
+    for x in range(9):
+        if arr[x][col] == num:
+            return False
+
+    # Check if the number is already in the 3x3 box
+    start_row = row - row % 3
+    start_col = col - col % 3
+    for i in range(3):
+        for j in range(3):
+            if arr[i + start_row][j + start_col] == num:
+                return False
+
+    return True
+
 
 # Function to clear the grid
 def clear_grid(grid):
     for i in range(9):
         for j in range(9):
-            grid[i][j] = 0
+            grid[i][j][0] = 0
+            grid[i][j][1] = []
 
 
-# Function to generate the sudoku
 def generate_sudoku(grid):
-    clear_grid(grid)
-    for i in range(40):
+    attempts = 30
+    for i in range(attempts):
+        print(f"Attempt {i + 1} of {attempts}")
+        clear_grid(grid)  # Reset the grid
+        numbers = list(range(1, 10))  # Numbers 1-9
+        fill_grid(grid, numbers)
+        remove_numbers(grid)  # Remove some numbers to create the puzzle
+
+        # Create a copy of the grid in 1 dimension without the possible values
+        check_arr = [[grid[i][j][0] for j in range(9)] for i in range(9)]
+        temp_grid = generate_sudoku_csp(check_arr)  # Update the grid with the possible values
+        # Check if the Sudoku can be solved
+        if solution(temp_grid):
+            return True, generate_sudoku_csp(check_arr)
+
+    return False, grid
+
+
+def fill_grid(grid, numbers):
+    # Find the first empty cell
+    for row in range(9):
+        for col in range(9):
+            if grid[row][col][0] == 0:
+                random.shuffle(numbers)  # Shuffle numbers for randomness
+                for num in numbers:
+                    if is_safe([[cell[0] for cell in row] for row in grid], col, row, num):
+                        grid[row][col][0] = num
+                        update_grid(grid, (row, col))  # Update possible values
+                        if fill_grid(grid, numbers):  # Recursively fill the grid
+                            return True
+                        grid[row][col][0] = 0  # Backtrack
+                return False
+    return True
+
+
+def remove_numbers(grid):
+    # Randomly remove numbers from the grid
+    i = 0
+    attempts = random.randint(50, 65)
+    while i < attempts:
         row = random.randint(0, 8)
         col = random.randint(0, 8)
-        num = random.randint(1, 9)
-        if is_safe(grid, col, row, num):
-            grid[row][col] = num
-        else:
-            i -= 1
-
-    # Copy the grid to check if there is a solution
-    check_arr = [[grid[i][j] for j in range(9)] for i in range(9)]
-
-    return solution(check_arr)
+        if grid[row][col][0] != 0:
+            grid[row][col][0] = 0
+            update_grid(grid, (row, col))  # Update possible values
+            i += 1
 
 
 # GUI ###############################################################################################################
@@ -161,12 +354,12 @@ def draw_grid():
 def print_sudoku(arr):
     for i in range(9):
         for j in range(9):
-            if arr[i][j] != 0:
-                text = FONT.render(str(arr[i][j]), True, BLACK)
+            if arr[i][j][0] != 0:
+                text = FONT.render(str(arr[i][j][0]), True, BLACK)
                 screen.blit(text, (j * table_width // 9 + 20 + MARGIN, i * table_height // 9 + 20 + MARGIN))
 
                 pygame.display.flip()
-                clock.tick(FPS_SOLUTION)
+                clock.tick(FPS)
 
 
 # Function to draw the solve button
@@ -195,9 +388,9 @@ def display_number(arr, row, col, fps=FPS):
                       table_width // 9 - 30, table_height // 9 - 30))
 
     # If the number is 0 -> we don't need to display it
-    if arr[row][col] != 0:
+    if arr[row][col][0] != 0:
         # Display the number in the correct location
-        screen.blit(FONT.render(str(arr[row][col]), True, COLOR),
+        screen.blit(FONT.render(str(arr[row][col][0]), True, COLOR),
                     (col * table_width // 9 + 20 + MARGIN, row * table_height // 9 + 20 + MARGIN))
 
     # update the screen
@@ -209,7 +402,6 @@ def display_number(arr, row, col, fps=FPS):
 
 # Function to display the speed options
 def display_speed_options():
-
     # Display the options
     speed_font = pygame.font.Font(None, 20)
     text = speed_font.render("Choose the speed:", True, BLACK)
@@ -231,7 +423,6 @@ def display_speed_options():
 
 # Function that start the solution of the sudoku
 def start_solution(grid):
-
     # Play sound when the user press the solve button
     sound = arcade.Sound("solution_audio.wav", True)
     play = arcade.play_sound(sound, 0.2, 0, True, 1)
@@ -239,7 +430,7 @@ def start_solution(grid):
     # Clear the screen
     screen.fill(WHITE)
     pygame.display.flip()
-    clock.tick(FPS_SOLUTION)
+    clock.tick(FPS)
 
     # Show that we are in solution
     text = FONT.render("Solving...", True, BLACK)
@@ -249,7 +440,11 @@ def start_solution(grid):
     draw_grid()
     pygame.display.flip()
     display_speed_options()
-    clock.tick(FPS_SOLUTION)
+    clock.tick(FPS)
+
+    # Restart the grid parameters
+    arr = [[grid[i][j][0] for j in range(9)] for i in range(9)]
+    grid = generate_sudoku_csp(arr)  # Update the grid with the possible values
 
     # Start the solution
     print_sudoku(grid)
@@ -282,7 +477,6 @@ def print_finish(finish, grid):
 
 # Function that mark the box that the user picked
 def mark_box(row, col, last_row=-1, last_col=-1):
-
     if IS_FINISH:
         return
 
@@ -318,20 +512,21 @@ def main():
     col = -1
 
     # The sudoku grid
-    grid = [[0 for _ in range(9)] for _ in range(9)]
-    grid = [[5, 3, 0, 0, 7, 0, 0, 0, 0],
-            [6, 0, 0, 1, 9, 5, 0, 0, 0],
-            [0, 9, 8, 0, 0, 0, 0, 6, 0],
-            [8, 0, 0, 0, 6, 0, 0, 0, 3],
-            [4, 0, 0, 8, 0, 3, 0, 0, 1],
-            [7, 0, 0, 0, 2, 0, 0, 0, 6],
-            [0, 6, 0, 0, 0, 0, 2, 8, 0],
-            [0, 0, 0, 4, 1, 9, 0, 0, 5],
-            [0, 0, 0, 0, 8, 0, 0, 7, 9]]
+    grid = [[[0, []] for _ in range(9)] for _ in range(9)]
 
-    # IS_START = generate_sudoku(grid)
-    # while not IS_START:
-    #     IS_START = generate_sudoku(grid)
+    IS_START, grid = generate_sudoku(grid)
+    if not IS_START:
+        arr = [[5, 3, 0, 0, 7, 0, 0, 0, 0],
+               [6, 0, 0, 1, 9, 5, 0, 0, 0],
+               [0, 9, 8, 0, 0, 0, 0, 6, 0],
+               [8, 0, 0, 0, 6, 0, 0, 0, 3],
+               [4, 0, 0, 8, 0, 3, 0, 0, 1],
+               [7, 0, 0, 0, 2, 0, 0, 0, 6],
+               [0, 6, 0, 0, 0, 0, 2, 8, 0],
+               [0, 0, 0, 4, 1, 9, 0, 0, 5],
+               [0, 0, 0, 0, 8, 0, 0, 7, 9]]
+
+        grid = generate_sudoku_csp(arr)
 
     display_screen(grid)
     display_speed_options()
@@ -356,11 +551,11 @@ def main():
 
                 # if the user wants to change the speed
                 elif 20 <= x <= 70 and 40 <= y <= 60:
-                    FPS_SOLUTION = 30
+                    FPS_SOLUTION = 5
                     SPEED = 1
                     display_speed_options()
                 elif 45 <= x <= 95 and 40 <= y <= 60:
-                    FPS_SOLUTION = 60
+                    FPS_SOLUTION = 30
                     SPEED = 2
                     display_speed_options()
                 elif 70 <= x <= 120 and 40 <= y <= 60:
@@ -410,28 +605,28 @@ def main():
             if event.type == pygame.KEYDOWN and row != -1 and col != -1 and IS_FINISH is False:
 
                 # save the number that was in the location
-                num = grid[row][col]
+                num = grid[row][col][0]
 
                 if event.key == pygame.K_1 or event.key == pygame.K_KP1:
-                    grid[row][col] = 1
+                    grid[row][col][0] = 1
                 elif event.key == pygame.K_2 or event.key == pygame.K_KP2:
-                    grid[row][col] = 2
+                    grid[row][col][0] = 2
                 elif event.key == pygame.K_3 or event.key == pygame.K_KP3:
-                    grid[row][col] = 3
+                    grid[row][col][0] = 3
                 elif event.key == pygame.K_4 or event.key == pygame.K_KP4:
-                    grid[row][col] = 4
+                    grid[row][col][0] = 4
                 elif event.key == pygame.K_5 or event.key == pygame.K_KP5:
-                    grid[row][col] = 5
+                    grid[row][col][0] = 5
                 elif event.key == pygame.K_6 or event.key == pygame.K_KP6:
-                    grid[row][col] = 6
+                    grid[row][col][0] = 6
                 elif event.key == pygame.K_7 or event.key == pygame.K_KP7:
-                    grid[row][col] = 7
+                    grid[row][col][0] = 7
                 elif event.key == pygame.K_8 or event.key == pygame.K_KP8:
-                    grid[row][col] = 8
+                    grid[row][col][0] = 8
                 elif event.key == pygame.K_9 or event.key == pygame.K_KP9:
-                    grid[row][col] = 9
+                    grid[row][col][0] = 9
                 elif event.key == pygame.K_DELETE or event.key == pygame.K_BACKSPACE:
-                    grid[row][col] = 0
+                    grid[row][col][0] = 0
 
                 display_number(grid, row, col, num)
 
