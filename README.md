@@ -15,6 +15,8 @@ The algorithm is `CSP (Constraint Satisfaction Problem)` based, which means it u
 space and find a solution more efficiently. The program also includes a function to check if a number can be placed in a
 given cell without violating Sudoku rules.
 
+If there is no solution to the puzzle, the program will print a message in the screen.
+
 ## Algorithm
 
 * step 1. find all the cells that have the the minimum number of possibilities, the
